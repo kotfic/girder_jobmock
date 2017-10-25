@@ -53,24 +53,58 @@ async def make_job(transitions, **job_kwargs):
     log.debug('Finished job {}'.format(job['_id']))
     return job['_id']
 
-async def chain(*jobs):
-    jobs = list(jobs)
+async def make_group(jobs):
+    pass
+
+async def execute(*steps):
+    # Reverse the list and work from the end backwards
+    steps =  list(steps)[::-1]
+
     _parent_id = None
     _root_id = None
+    last_step = None
 
-    while jobs:
-        _type, args, kwargs = jobs.pop()
-        if _type == JOB:
-            kwargs['otherFields']['parentId'] = _parent_id
-            kwargs['otherFields']['rootId'] = _root_id
-            _parent_id = await ioloop.create_task(make_job(*args, **kwargs))
+    while steps:
+        try:
+            _type, args, kwargs = steps[-1]
+            if _type != JOB:
+                raise ValueError()
+            else:
+                # Set the job's parent and root
+                kwargs['otherFields']['parentId'] = _parent_id
+                kwargs['otherFields']['rootId'] = _root_id
+                _parent_id = await ioloop.create_task(make_job(*args, **kwargs))
 
+        except ValueError:
+            _type, jobs = steps[-1]
+            if _type != GROUP:
+                raise RuntimeError("Unknown type {}".format(_type))
+
+            # Set each job's parent and root
+            for _, job in jobs:
+                job['otherFields']['parentId'] = _parent_id
+                job['otherFields']['rootId'] = _root_id
+
+                _parent_id = await ioloop.create_task(make_group(jobs))
+
+        # Track the last step so we can handle parent_type correctly
+        last_step = steps.pop()
+
+        # If root is None then this is the first task and "_parent_id"
+        # is also the id of the root job
         if _root_id is None:
             _root_id = _parent_id
 
+
+async def execute_single_job(delay=None):
+    trans = [(JobStatus.RUNNING, delay), (JobStatus.SUCCESS, delay)]
+    await execute(
+        job('Single Job', trans),
+    )
+
 async def chain_three_jobs(delay=None):
     trans = [(JobStatus.RUNNING, delay), (JobStatus.SUCCESS, delay)]
-    await chain(
+    await execute(
         job('Test Task 1', trans),
         job('Test Task 2', trans),
         job('Test Task 3', trans)
