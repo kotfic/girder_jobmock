@@ -1,27 +1,25 @@
-from girder.utility.server import configureServer
-from girder.models.user import User
+from functools import lru_cache
+import asyncio
 import time
 import asyncio
 import logging
 import uuid
-global ioloop
+
+ioloop = asyncio.get_event_loop()
+
+log = logging.getLogger('girderjobmock')
 
 JOB = 'job'
 GROUP = 'group'
 
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-log.addHandler(ch)
-
-admin_user =  list(User().getAdmins())[0]
+@lru_cache()
+def admin_user():
+    from girder.models.user import User
+    return list(User().getAdmins())[0]
 
 def job(title, transitions, **kwargs):
     kwargs['title'] = title
-    kwargs['user'] = kwargs.get('user', admin_user)
+    kwargs['user'] = kwargs.get('user', admin_user())
     kwargs['type'] = kwargs.get('type', 'jobmock')
     kwargs['public'] = kwargs.get('public', True)
     kwargs['otherFields'] = kwargs.get('otherFields', {})
@@ -37,24 +35,26 @@ def group(*jobs, **kwargs):
 
 
 async def make_job(transitions, **job_kwargs):
-    t0 = time.time()
+
     log.debug('Starting create job {}'.format(job_kwargs['title']))
     from girder.plugins.jobs.models.job import Job
 
     job = Job().createJob(**job_kwargs)
     job = Job().save(job)
-    log.info('<{: <21} _id={: <15} rid={: <15} pt={: <10} pid={: <15} gid={: <15}>'.format(
-        '"{}...",'.format(job['title'][:15]) if len(job['title']) > 15 else '"{}",'.format(job['title']),
+
+    log.info('<{: <16} _id={: <12} rid={: <12} pt={: <9} pid={: <12} gid={: <11}>'.format(
+        '"{}...",'.format(job['title'][:10]) if len(job['title']) > 13 else '"{}",'.format(job['title']),
         '...{},'.format(str(job['_id'])[-8:]),
         'None,' if 'rootId'     not in job else '...{},'.format(str(job['rootId'])[-8:]),
         'None,' if 'parentType' not in job else '...{},'.format(str(job['parentType'])[-8:]),
         'None,' if 'parentId'   not in job else '...{},'.format(str(job['parentId'])[-8:]),
-        'None,' if 'groupId'    not in job else '...{},'.format(str(job['groupId'])[-8:])))
+        'None'  if 'groupId'    not in job else '...{}'.format(str(job['groupId'])[-8:])))
 
     for state, delay in transitions:
-        Job().updateJob(job, status=state)
         if delay is not None:
             await asyncio.sleep(delay)
+        Job().updateJob(job, status=state)
+        log.debug("Update job {} to status {}".format(job['_id'], state))
 
     log.debug('Finished job {}'.format(job['_id']))
     return job['_id']
@@ -65,6 +65,7 @@ async def make_group(jobs):
         ioloop.create_task(make_job(*args, **kwargs)) for _, args, kwargs in jobs])
 
     return group_id
+
 
 async def execute(*steps):
     # Reverse the list and work from the end backwards
@@ -108,12 +109,14 @@ async def execute(*steps):
 
 
 async def execute_single_job(delay=None):
+    from girder.plugins.jobs.constants import JobStatus
     trans = [(JobStatus.RUNNING, delay), (JobStatus.SUCCESS, delay)]
     await execute(
         job('Single Job', trans),
     )
 
 async def chain_three_jobs(delay=None):
+    from girder.plugins.jobs.constants import JobStatus
     trans = [(JobStatus.RUNNING, delay), (JobStatus.SUCCESS, delay)]
     await execute(
         job('Test Task 1', trans),
@@ -122,28 +125,16 @@ async def chain_three_jobs(delay=None):
     )
 
 async def group_three_jobs(delay=None):
+    from girder.plugins.jobs.constants import JobStatus
     trans = [(JobStatus.RUNNING, delay), (JobStatus.SUCCESS, delay)]
     await execute(
         job('Test Root', trans),
         job('Test Chain', trans),
         group(
+            job('Something with a much longer name', trans),
             job('Test Group 1', trans),
             job('Test Group 2', trans),
             job('Test Group 3', trans)
         ),
         job('Test Chord', trans)
     )
-
-
-
-if __name__ == '__main__':
-    global ioloop
-    plugins = ['jobs']
-    webroot, appconf = configureServer(plugins=plugins)
-
-    from girder.plugins.jobs.constants import JobStatus
-
-    ioloop = asyncio.get_event_loop()
-    ioloop.run_until_complete(group_three_jobs())
-
-    ioloop.close()
