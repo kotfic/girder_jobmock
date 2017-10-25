@@ -131,7 +131,6 @@ async def group_three_jobs(delay=None):
         job('Test Root', trans),
         job('Test Chain', trans),
         group(
-            job('Something with a much longer name', trans),
             job('Test Group 1', trans),
             job('Test Group 2', trans),
             job('Test Group 3', trans)

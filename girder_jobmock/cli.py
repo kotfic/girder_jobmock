@@ -1,7 +1,8 @@
 from .jobmock import (
     execute_single_job,
     chain_three_jobs,
-    group_three_jobs
+    group_three_jobs,
+    admin_user
 )
 
 import click
@@ -42,8 +43,19 @@ def close_loop(*args, **kwargs):
 
 
 @cli.command()
+def cleanup():
+    log = logging.getLogger('girderjobmock')
+
+    from girder.plugins.jobs.models.job import Job
+    query = {"type": { "$in": ["jobmock"] }}
+    count = Job().removeWithQuery(query).deleted_count
+
+    log.info("Deleted {} jobs.".format(count))
+
+
+@cli.command()
 @click.option('--delay', '-d', type=float, default=None,
-            help='How much to delay state trasitions for the Job')
+           help='How much to delay state trasitions for the Job')
 def single(delay):
     ioloop.run_until_complete(execute_single_job(delay=delay))
 
