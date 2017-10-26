@@ -5,9 +5,7 @@ _initialize:
 	ansible-galaxy install -r requirements.yml --roles-path=roles/
 
 check-env:
-	ifndef GIRDER_PATH
-	    $(error GIRDER_PATH is undefined)
-	endif
+	if test -z "$$GIRDER_PATH"; then echo "GIRDER_PATH is undefined"; exit 1; fi
 
 dev: check-env
 	$(eval COMPOSE_FILE=docker-compose-dev.yml)
