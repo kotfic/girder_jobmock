@@ -43,6 +43,20 @@
         password: "letmein"
         post:
           path: "system/web_build"
+          data:
+            dev: false
+      when: development is not defined
+
+
+    - name: Rebuild the web code (dev)
+      girder:
+        username: "admin"
+        password: "letmein"
+        post:
+          path: "system/web_build"
+          data:
+            dev: true
+      when: development is defined
 
     - name: Restart the server
       girder:
