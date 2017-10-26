@@ -59,3 +59,18 @@ $> girder-jobmock dist -d 10 -d 5 -d 50
 ```
 
 ![matplotlib image](misc/dist.png)
+
+
+Finally remove all jobs created by jobmock:
+```
+$> girder-jobmock clean
+```
+
+## Devops
+
+This package comes with a complete environment for testing against.  Please see the [devops/](devops/) folder for more information.
+
+
+## Distribution shenanigans
+
+Many commands in girder-jobmock accept a ```-d``` or ```--delay``` flag.  The ```-d``` Flag can be specified up to three times. The first time indicates the delay in seconds before the job will transition to a 'finished' state (either SUCCESS or ERROR). If only on ```-d``` is specified then each task will take exactly this amount of time.  If two ```-d``` are specified,  then the first ```-d``` is the delay,  and the second ```-d``` is the 'jitter.' The amount of time before the task completes will be pulled from a normal distribution with mean of the first ```-d``` and standard deviation of the second ```-d```. In reality,  most task run-times are skewed distributions. If you specify a third ```-d``` This will be the skew of distribution.  It can be difficult to visualize these distributions so we provide the ```dist``` command which will plot 5000 randomly generated numbers from the distribution defined by the sequences of ```-d``` flags you pass to it. This should give you a good sense of the timing ranges your tasks will run in.
