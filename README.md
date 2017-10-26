@@ -8,10 +8,9 @@ Close the repository and create a virtual environment.
 **NOTE** You must use Python >= 3.5
 
 ```
-mkdir jobmock
-git clone git@kwgitlab.kitware.com:chris.kotfila/girder_jobmock.git .
-makevirtualenv -a . -ppython3 jobmock 
-workon jobmock
+git clone git@kwgitlab.kitware.com:chris.kotfila/girder_jobmock.git jobmock
+cd jobmock
+mkvirtualenv -a . -ppython3 jobmock 
 ```
 
 Install the package
