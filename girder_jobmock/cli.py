@@ -1,6 +1,12 @@
 from . import FloatRange, distribution
 from .jobmock import admin_user
-from .scenarios import *
+from .scenarios import (
+    execute_single_job,
+    chain_N_jobs,
+    group_N_jobs,
+    chord_N_jobs,
+    basic_workflow)
+
 import click
 import asyncio
 import logging
@@ -93,6 +99,13 @@ def chord(number, delay, error):
 def group(number, delay, error):
     ioloop.run_until_complete(
         group_N_jobs(number, delay, error))
+
+
+@cli.command()
+@click.option('--delay', '-d', multiple=True, type=float, callback=distribution,
+            help='How much to delay finish trasition for the Job')
+def workflow(delay):
+    ioloop.run_until_complete(basic_workflow(finish_delay=delay))
 
 
 @cli.command(help='View a histogram of the timing distribution')

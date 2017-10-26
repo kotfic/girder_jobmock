@@ -64,3 +64,21 @@ async def chord_N_jobs(N, finish_delay=None, error_rate=0):
                 for i in range(N)]),
         job('Reduce 0', success_trans)
     )
+
+
+
+async def basic_workflow(finish_delay=None):
+    from girder.plugins.jobs.constants import JobStatus
+    start_delay=None
+    success_trans = [(JobStatus.RUNNING, start_delay),
+                     (JobStatus.SUCCESS, finish_delay)]
+
+    await execute(
+        job('Root', success_trans),
+        job('Chain 1', success_trans),
+        group(
+            job('Map 0', success_trans),
+            job('Map 1', success_trans),
+            job('Map 2', success_trans)),
+        job('Reduce 0', success_trans)
+    )
