@@ -7,7 +7,10 @@ setup(
     license='Apache 2',
     install_requires=[
         'girder',
-        'click'
+        'click',
+        'scipy',
+        'matplotlib',
+        'seaborn'
     ],
     entry_points={
         'console_scripts': [

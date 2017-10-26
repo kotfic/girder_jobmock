@@ -119,5 +119,6 @@ def dist(dist):
         log.error("Please install matplotlib and seaborn!")
         sys.exit(1)
 
-    sns.distplot([dist() for _ in range(5000)])
+    ax = sns.distplot([dist() for _ in range(5000)])
+    ax.set(xlabel='Seconds')
     plt.show()
