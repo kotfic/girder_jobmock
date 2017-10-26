@@ -49,14 +49,14 @@ async def make_job(transitions, **job_kwargs):
         'None,' if 'parentType' not in job else '...{},'.format(str(job['parentType'])[-8:]),
         'None,' if 'parentId'   not in job else '...{},'.format(str(job['parentId'])[-8:]),
         'None'  if 'groupId'    not in job else '...{}'.format(str(job['groupId'])[-8:])))
-
+    t0 = time.time()
     for state, delay in transitions:
         if delay is not None:
-            await asyncio.sleep(delay)
+            await asyncio.sleep(delay())
         Job().updateJob(job, status=state)
         log.debug("Update job {} to status {}".format(job['_id'], state))
 
-    log.debug('Finished job {}'.format(job['_id']))
+    log.debug('Finished job {} ({})'.format(job['_id'], time.time() - t0))
     return job['_id']
 
 async def make_group(jobs):
@@ -105,35 +105,3 @@ async def execute(*steps):
         # is also the id of the root job
         if _root_id is None:
             _root_id = _parent_id
-
-
-
-async def execute_single_job(delay=None):
-    from girder.plugins.jobs.constants import JobStatus
-    trans = [(JobStatus.RUNNING, delay), (JobStatus.SUCCESS, delay)]
-    await execute(
-        job('Single Job', trans),
-    )
-
-async def chain_three_jobs(delay=None):
-    from girder.plugins.jobs.constants import JobStatus
-    trans = [(JobStatus.RUNNING, delay), (JobStatus.SUCCESS, delay)]
-    await execute(
-        job('Test Task 1', trans),
-        job('Test Task 2', trans),
-        job('Test Task 3', trans)
-    )
-
-async def group_three_jobs(delay=None):
-    from girder.plugins.jobs.constants import JobStatus
-    trans = [(JobStatus.RUNNING, delay), (JobStatus.SUCCESS, delay)]
-    await execute(
-        job('Test Root', trans),
-        job('Test Chain', trans),
-        group(
-            job('Test Group 1', trans),
-            job('Test Group 2', trans),
-            job('Test Group 3', trans)
-        ),
-        job('Test Chord', trans)
-    )

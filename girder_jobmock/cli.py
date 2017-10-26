@@ -1,13 +1,10 @@
-from .jobmock import (
-    execute_single_job,
-    chain_three_jobs,
-    group_three_jobs,
-    admin_user
-)
-
+from . import FloatRange, distribution
+from .jobmock import admin_user
+from .scenarios import *
 import click
 import asyncio
 import logging
+import sys
 
 global ioloop
 
@@ -54,20 +51,60 @@ def cleanup():
 
 
 @cli.command()
-@click.option('--delay', '-d', type=float, default=None,
-           help='How much to delay state trasitions for the Job')
-def single(delay):
-    ioloop.run_until_complete(execute_single_job(delay=delay))
+@click.option('--delay', '-d', multiple=True, type=float, callback=distribution,
+            help='How much to delay finish trasition for the Job')
+@click.option('--error', '-e', is_flag=True,
+              help='Transition to Error instead of Success')
+def single(delay, error):
+    ioloop.run_until_complete(
+        execute_single_job(delay, not error))
 
 
 @cli.command()
-@click.option('--delay', '-d', type=float, default=None,
-            help='How much to delay state trasitions for the Job')
-def chain(delay):
-    ioloop.run_until_complete(chain_three_jobs(delay=delay))
+@click.option('--number', '-n', type=int, default=3,
+            help='How many jobs to generate')
+@click.option('--delay', '-d', multiple=True, type=float, callback=distribution,
+            help='How much to delay finish trasition for the Job')
+@click.option('--error', '-e', type=int, default=-1,
+              help='Zero-indexed job to error out on (No error by default)')
+def chain(number, delay, error):
+    ioloop.run_until_complete(
+        chain_N_jobs(number, delay, error))
 
 @cli.command()
-@click.option('--delay', '-d', type=float, default=None,
-            help='How much to delay state trasitions for the Job')
-def group(delay):
-    ioloop.run_until_complete(group_three_jobs(delay=delay))
+@click.option('--number', '-n', type=int, default=3,
+            help='How many jobs to generate')
+@click.option('--delay', '-d', multiple=True, type=float, callback=distribution,
+            help='How much to delay finish trasition for the Job')
+@click.option('--error', '-e', type=FloatRange(0.0, 1.0), default=0.0,
+            help='Rough percentage of jobs that error')
+def chord(number, delay, error):
+    ioloop.run_until_complete(
+        chord_N_jobs(number, delay, error))
+
+
+@cli.command()
+@click.option('--number', '-n', type=int, default=3,
+            help='How many jobs to generate')
+@click.option('--delay', '-d', multiple=True, type=float, callback=distribution,
+            help='How much to delay finish trasition for the Job')
+@click.option('--error', '-e', type=FloatRange(0.0, 1.0), default=0.0,
+            help='Rough percentage of jobs that error')
+def group(number, delay, error):
+    ioloop.run_until_complete(
+        group_N_jobs(number, delay, error))
+
+
+@cli.command(help='View a histogram of the timing distribution')
+@click.option('--dist', '-d', multiple=True, type=float, callback=distribution)
+def dist(dist):
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+    except ImportError:
+        log = logging.getLogger('girderjobmock')
+        log.error("Please install matplotlib and seaborn!")
+        sys.exit(1)
+
+    sns.distplot([dist() for _ in range(5000)])
+    plt.show()
